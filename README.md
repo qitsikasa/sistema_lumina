@@ -295,17 +295,6 @@ archivos (
 
 ---
 
-## 👨‍💻 **Autor**
-
-**Desarrollado con ❤️ para la comunidad estudiantil universitaria**
-
-- 📧 Email: [tu-email@universidad.edu]
-- 🎓 Universidad: [Tu Universidad]
-- 📚 Carrera: [Tu Carrera]
-- 📅 Año: 2025
-
----
-
 ## 📄 **Licencia**
 
 Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE.md](LICENSE.md) para más detalles.
