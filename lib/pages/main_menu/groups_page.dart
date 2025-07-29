@@ -1119,76 +1119,76 @@ class _GroupChatPage extends StatefulWidget {
   State<_GroupChatPage> createState() => _GroupChatPageState();
 }
 
-class _GroupChatPageState extends State<_GroupChatPage> {
+class _GroupChatPageState extends State<_GroupChatPage>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _messageController = TextEditingController();
   final List<ChatMessage> _messages = [];
   final ScrollController _scrollController = ScrollController();
+  late TabController _tabController;
+  int _selectedTabIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      setState(() {
+        _selectedTabIndex = _tabController.index;
+      });
+    });
     _loadMessages();
   }
 
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   void _loadMessages() async {
-    try {
-      final messages = await GroupService.getGroupMessages(widget.group.id);
-
-      setState(() {
-        _messages.clear();
-        _messages.addAll(
-          messages.map((msg) {
-            final user = msg['usuarios'] as Map<String, dynamic>?;
-            final isCurrentUser = user?['id'] == supabase.auth.currentUser?.id;
-
-            return ChatMessage(
-              id: msg['id'],
-              text: msg['mensaje'],
-              senderName:
-                  user != null
-                      ? '${user['nombre']} ${user['apellido']}'
-                      : 'Usuario',
-              timestamp: DateTime.parse(msg['created_at']),
-              isCurrentUser: isCurrentUser,
-            );
-          }).toList(),
-        );
-      });
-    } catch (e) {
-      print('Error cargando mensajes: $e');
-      // Cargar mensajes de ejemplo si hay error
+    // Cargar mensajes de ejemplo que coincidan con la imagen
+    setState(() {
+      _messages.clear();
       _messages.addAll([
         ChatMessage(
           id: '1',
-          text: '¡Hola a todos! ¿Cómo va el estudio?',
-          senderName: 'Sofía García',
-          timestamp: DateTime.now().subtract(const Duration(minutes: 5)),
+          text:
+              '¿Alguien tiene dificultades con la integración numérica? Encontré un excelente recurso que te podría ayudar con la resolución de este tipo de problemas.',
+          senderName: 'Miguel Ochoa',
+          timestamp: DateTime.now().subtract(const Duration(days: 1)),
           isCurrentUser: false,
+          avatar: 'MO',
         ),
         ChatMessage(
           id: '2',
           text:
-              'Hola! Estoy trabajando en el proyecto de ecuaciones diferenciales',
-          senderName: 'Carlos López',
-          timestamp: DateTime.now().subtract(const Duration(minutes: 3)),
+              'Hola Miguel! Gracias, realmente estaba teniendo dificultades en el viernes 3 de la tarde con la biblioteca. Apreciaría cualquier ayuda sobre transformadas de Fourier.',
+          senderName: 'Laura Ramos',
+          timestamp: DateTime.now().subtract(const Duration(days: 1)),
           isCurrentUser: false,
+          avatar: 'LR',
         ),
         ChatMessage(
           id: '3',
-          text: 'Yo también! ¿Alguien quiere revisar mi solución?',
+          text: 'Por cierto de Miguel, ¿Podrías compartir el enlace?',
           senderName: 'Tú',
-          timestamp: DateTime.now().subtract(const Duration(minutes: 1)),
+          timestamp: DateTime.now().subtract(const Duration(minutes: 20)),
           isCurrentUser: true,
+          avatar: 'TU',
         ),
         ChatMessage(
           id: '4',
-          text: 'Claro, compártela en el grupo de archivos',
-          senderName: 'María Rodríguez',
-          timestamp: DateTime.now(),
+          text:
+              '¡Claro! Lo subiré después de que termine de revisar las notas. Te ayudaré en el apartado de documentos.',
+          senderName: 'Miguel Ochoa',
+          timestamp: DateTime.now().subtract(const Duration(minutes: 20)),
           isCurrentUser: false,
+          avatar: 'MO',
         ),
       ]);
-    }
+    });
   }
 
   void _sendMessage() async {
@@ -1197,13 +1197,13 @@ class _GroupChatPageState extends State<_GroupChatPage> {
     final messageText = _messageController.text.trim();
     _messageController.clear();
 
-    // Agregar mensaje localmente inmediatamente
     final localMessage = ChatMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       text: messageText,
       senderName: 'Tú',
       timestamp: DateTime.now(),
       isCurrentUser: true,
+      avatar: 'TU',
     );
 
     setState(() {
@@ -1211,31 +1211,6 @@ class _GroupChatPageState extends State<_GroupChatPage> {
     });
 
     _scrollToBottom();
-
-    // Enviar mensaje a Supabase
-    try {
-      final success = await GroupService.sendMessage(
-        widget.group.id,
-        messageText,
-      );
-      if (!success) {
-        // Si falla, mostrar error
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al enviar el mensaje'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      print('Error enviando mensaje: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al enviar el mensaje'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
   }
 
   void _scrollToBottom() {
@@ -1253,61 +1228,133 @@ class _GroupChatPageState extends State<_GroupChatPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Chat - ${widget.group.nombre}'),
-        backgroundColor: const Color(0xFF6C4DFF),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            onPressed: () {
-              // Mostrar opciones del grupo
-              _showGroupOptions(context);
-            },
-            icon: const Icon(Icons.more_vert),
-          ),
-        ],
-      ),
+      backgroundColor: Colors.white,
       body: Column(
         children: [
-          // Información del grupo
+          // Header con breadcrumb y botones
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
+              color: Colors.white,
               border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
             ),
-            child: Row(
+            child: Column(
               children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: _getGroupColor(
-                    widget.group.tipo,
-                  ).withOpacity(0.1),
-                  child: Icon(
-                    _getGroupIcon(widget.group.tipo),
-                    color: _getGroupColor(widget.group.tipo),
-                    size: 20,
-                  ),
+                // Breadcrumb y botones superiores
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Inicio > Grupos > ${widget.group.nombre}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        ElevatedButton(
+                          onPressed: () {},
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                          ),
+                          child: const Text(
+                            'Crear Grupo',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.grey.shade300,
+                          child: const Icon(
+                            Icons.person,
+                            size: 20,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.group.nombre,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                const SizedBox(height: 20),
+
+                // Información del grupo
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade100,
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      Text(
-                        '${widget.group.miembrosCount} miembros • ${widget.group.archivosCount} archivos',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 12,
-                        ),
+                      child: Icon(
+                        Icons.calculate,
+                        color: Colors.blue,
+                        size: 30,
                       ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.group.nombre,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            widget.group.descripcion ??
+                                'Un grupo específico para estudiantes de diferentes carreras que quieren aprobar cálculo, y que realizan la resolución de problemas y preparación de exámenes.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade700,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Pestañas
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey.shade200),
+                    ),
+                  ),
+                  child: TabBar(
+                    controller: _tabController,
+                    labelColor: Colors.blue,
+                    unselectedLabelColor: Colors.grey.shade600,
+                    indicatorColor: Colors.blue,
+                    indicatorWeight: 2,
+                    labelStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    tabs: const [
+                      Tab(text: 'Chat'),
+                      Tab(text: 'Miembros'),
+                      Tab(text: 'Archivos'),
                     ],
                   ),
                 ),
@@ -1315,38 +1362,77 @@ class _GroupChatPageState extends State<_GroupChatPage> {
             ),
           ),
 
-          // Lista de mensajes
+          // Contenido de las pestañas
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                return _ChatMessageWidget(message: message);
-              },
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // Pestaña Chat
+                _buildChatTab(),
+                // Pestaña Miembros
+                _buildMembersTab(),
+                // Pestaña Archivos
+                _buildFilesTab(),
+              ],
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-          // Campo de entrada de mensaje
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.grey.shade200)),
+  Widget _buildChatTab() {
+    return Column(
+      children: [
+        // Título del chat
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          child: const Text(
+            'Chat grupal',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
             ),
-            child: Row(
-              children: [
-                Expanded(
+          ),
+        ),
+
+        // Lista de mensajes
+        Expanded(
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: _messages.length,
+            itemBuilder: (context, index) {
+              final message = _messages[index];
+              return _buildChatMessage(message);
+            },
+          ),
+        ),
+
+        // Campo de entrada de mensaje
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: Colors.grey.shade200)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(25),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
                   child: TextField(
                     controller: _messageController,
-                    decoration: InputDecoration(
-                      hintText: 'Escribe un mensaje...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(25),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
+                    decoration: const InputDecoration(
+                      hintText: 'Escribe tu mensaje...',
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 12,
                       ),
@@ -1354,11 +1440,89 @@ class _GroupChatPageState extends State<_GroupChatPage> {
                     onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton(
+              ),
+              const SizedBox(width: 12),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: IconButton(
                   onPressed: _sendMessage,
-                  icon: const Icon(Icons.send),
-                  color: const Color(0xFF6C4DFF),
+                  icon: const Icon(Icons.send, color: Colors.white, size: 20),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChatMessage(ChatMessage message) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Avatar
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: Colors.grey.shade300,
+            child: Text(
+              message.avatar,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.black54,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // Contenido del mensaje
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Nombre y timestamp
+                Row(
+                  children: [
+                    Text(
+                      message.senderName,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _formatTimestamp(message.timestamp),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+
+                // Mensaje
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    message.text,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
+                      height: 1.4,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -1368,116 +1532,173 @@ class _GroupChatPageState extends State<_GroupChatPage> {
     );
   }
 
-  IconData _getGroupIcon(String? tipo) {
-    switch (tipo?.toLowerCase()) {
-      case 'programación':
-      case 'codificación':
-        return Icons.code;
-      case 'laboratorio':
-      case 'química':
-        return Icons.science;
-      case 'matemáticas':
-      case 'ecuaciones':
-        return Icons.functions;
-      case 'historia':
-      case 'sociología':
-        return Icons.public;
-      case 'biología':
-      case 'investigación':
-        return Icons.biotech;
-      case 'debate':
-      case 'discusión':
-        return Icons.chat_bubble;
-      default:
-        return Icons.group;
-    }
+  Widget _buildMembersTab() {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Miembros del grupo',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Lista de miembros
+          Row(
+            children: [
+              _buildMemberAvatar('TU', 'Tú'),
+              const SizedBox(width: 16),
+              _buildMemberAvatar('MO', 'Miguel Ochoa'),
+              const SizedBox(width: 16),
+              _buildMemberAvatar('LR', 'Laura Ramos'),
+              const SizedBox(width: 16),
+              _buildMemberAvatar('AR', 'Ana Rodriguez'),
+              const SizedBox(width: 16),
+              _buildMemberAvatar('CP', 'Carlos Pérez'),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
-  Color _getGroupColor(String? tipo) {
-    switch (tipo?.toLowerCase()) {
-      case 'programación':
-      case 'codificación':
-        return Colors.blue;
-      case 'laboratorio':
-      case 'química':
-        return Colors.green;
-      case 'matemáticas':
-      case 'ecuaciones':
-        return Colors.orange;
-      case 'historia':
-      case 'sociología':
-        return Colors.purple;
-      case 'biología':
-      case 'investigación':
-        return Colors.teal;
-      case 'debate':
-      case 'discusión':
-        return Colors.red;
-      default:
-        return const Color(0xFF6C4DFF);
-    }
+  Widget _buildMemberAvatar(String initials, String name) {
+    return Column(
+      children: [
+        CircleAvatar(
+          radius: 25,
+          backgroundColor: Colors.grey.shade300,
+          child: Text(
+            initials,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.black54,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          name,
+          style: const TextStyle(fontSize: 12, color: Colors.black87),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
   }
 
-  void _showGroupOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder:
-          (context) => Container(
-            padding: const EdgeInsets.all(16),
+  Widget _buildFilesTab() {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Documentos compartidos',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Lista de documentos
+          _buildDocumentItem(
+            'Cálculo Límites.docx.pdf',
+            '2 MB',
+            Icons.picture_as_pdf,
+            Colors.red,
+          ),
+          const SizedBox(height: 12),
+          _buildDocumentItem(
+            'Apuntes Cálculo Numérico.pdf',
+            '5 MB',
+            Icons.picture_as_pdf,
+            Colors.red,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDocumentItem(
+    String name,
+    String size,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ListTile(
-                  leading: const Icon(Icons.people),
-                  title: const Text('Ver Miembros'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Lista de miembros próximamente'),
-                      ),
-                    );
-                  },
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black,
+                  ),
                 ),
-                ListTile(
-                  leading: const Icon(Icons.folder),
-                  title: const Text('Archivos del Grupo'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Archivos del grupo próximamente'),
-                      ),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.settings),
-                  title: const Text('Configuración del Grupo'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Configuración próximamente'),
-                      ),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.exit_to_app),
-                  title: const Text('Salir del Grupo'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Has salido del grupo')),
-                    );
-                  },
+                Text(
+                  size,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],
             ),
           ),
+          ElevatedButton(
+            onPressed: () {},
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+            child: const Text('Descargar', style: TextStyle(fontSize: 12)),
+          ),
+        ],
+      ),
     );
+  }
+
+  String _formatTimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inDays >= 1) {
+      return 'Ayer';
+    } else if (difference.inMinutes >= 1) {
+      return 'hace ${difference.inMinutes} minutos';
+    } else {
+      return 'Ahora';
+    }
   }
 }
 
@@ -1487,6 +1708,7 @@ class ChatMessage {
   final String senderName;
   final DateTime timestamp;
   final bool isCurrentUser;
+  final String avatar;
 
   ChatMessage({
     required this.id,
@@ -1494,115 +1716,6 @@ class ChatMessage {
     required this.senderName,
     required this.timestamp,
     required this.isCurrentUser,
+    this.avatar = 'U',
   });
-}
-
-class _ChatMessageWidget extends StatelessWidget {
-  final ChatMessage message;
-
-  const _ChatMessageWidget({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        mainAxisAlignment:
-            message.isCurrentUser
-                ? MainAxisAlignment.end
-                : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!message.isCurrentUser) ...[
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: Colors.grey.shade300,
-              child: Text(
-                message.senderName[0].toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color:
-                    message.isCurrentUser
-                        ? const Color(0xFF6C4DFF)
-                        : Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment:
-                    message.isCurrentUser
-                        ? CrossAxisAlignment.end
-                        : CrossAxisAlignment.start,
-                children: [
-                  if (!message.isCurrentUser)
-                    Text(
-                      message.senderName,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  const SizedBox(height: 4),
-                  Text(
-                    message.text,
-                    style: TextStyle(
-                      color:
-                          message.isCurrentUser ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _formatTime(message.timestamp),
-                    style: TextStyle(
-                      fontSize: 10,
-                      color:
-                          message.isCurrentUser
-                              ? Colors.white.withOpacity(0.7)
-                              : Colors.grey.shade600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (message.isCurrentUser) ...[
-            const SizedBox(width: 8),
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: Colors.grey.shade300,
-              child: const Text(
-                'T',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  String _formatTime(DateTime timestamp) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
-
-    if (difference.inMinutes < 1) {
-      return 'Ahora';
-    } else if (difference.inMinutes < 60) {
-      return 'hace ${difference.inMinutes}m';
-    } else if (difference.inHours < 24) {
-      return 'hace ${difference.inHours}h';
-    } else {
-      return 'hace ${difference.inDays}d';
-    }
-  }
 }

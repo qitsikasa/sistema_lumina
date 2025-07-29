@@ -63,6 +63,57 @@ class _FilesPageState extends State<FilesPage> {
     }
   }
 
+  Widget _buildProfileImage() {
+    print('🔍 Debug: _currentUser = ${_currentUser?.name}');
+    print('🔍 Debug: profileImageUrl = ${_currentUser?.profileImageUrl}');
+
+    if (_currentUser?.profileImageUrl != null &&
+        _currentUser!.profileImageUrl!.isNotEmpty) {
+      print(
+        '✅ Intentando cargar imagen desde: ${_currentUser!.profileImageUrl}',
+      );
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(40),
+        child: Image.network(
+          _currentUser!.profileImageUrl!,
+          width: 80,
+          height: 80,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            print('❌ Error cargando imagen: $error');
+            return Image.asset(
+              'assets/images/EmuOtori.webp',
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+            );
+          },
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) {
+              print('✅ Imagen cargada exitosamente');
+              return child;
+            }
+            print(
+              '⏳ Cargando imagen: ${(loadingProgress.cumulativeBytesLoaded / (loadingProgress.expectedTotalBytes ?? 1) * 100).toStringAsFixed(1)}%',
+            );
+            return const CircularProgressIndicator(strokeWidth: 2);
+          },
+        ),
+      );
+    } else {
+      print('⚠️ No hay URL de imagen disponible, mostrando imagen por defecto');
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(40),
+        child: Image.asset(
+          'assets/images/EmuOtori.webp',
+          width: 80,
+          height: 80,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+  }
+
   void _filterFiles() {
     setState(() {
       _filteredFiles =
@@ -139,13 +190,7 @@ class _FilesPageState extends State<FilesPage> {
                     borderRadius: BorderRadius.circular(40),
                     color: Colors.yellow.shade100,
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(40),
-                    child: Image.asset(
-                      'assets/images/EmuOtori.webp',
-                      fit: BoxFit.cover,
-                    ),
-                  ),
+                  child: _buildProfileImage(),
                 ),
               ],
             ),
